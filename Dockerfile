@@ -9,11 +9,16 @@ WORKDIR /app
 
 ENV GO111MODULE=on
 
-COPY . .
+# copy go.mod (even if go.sum does not exist)
+COPY go.mod ./
+
+# download dependencies (this step gets cached)
 RUN go mod download
 
+# now copy the rest of the source code
 COPY . .
 
+# build static binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main .
 
 
@@ -29,3 +34,4 @@ WORKDIR /root/
 COPY --from=builder /app/main .
 
 ENTRYPOINT ["./main"]
+
