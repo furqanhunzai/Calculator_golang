@@ -1,26 +1,31 @@
-###########################################
-# BASE IMAGE
-###########################################
+#####################################
+# STAGE 1: BUILD GO BINARY
+#####################################
+FROM golang:1.22-alpine AS builder
 
-FROM ubuntu AS build
+RUN apk add --no-cache git
 
-RUN apt-get update && apt-get install -y golang-go
+WORKDIR /app
 
-ENV GO111MODULE=off
+ENV GO111MODULE=on
+
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 go build -o /app .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main .
 
-############################################
-# HERE STARTS THE MAGIC OF MULTI STAGE BUILD
-############################################
 
-FROM scratch
+#####################################
+# STAGE 2: FINAL RUNTIME IMAGE
+#####################################
+FROM alpine:3.19
 
-# Copy the compiled binary from the build stage
-COPY --from=build /app /app
+RUN apk --no-cache add ca-certificates
 
-# Set the entrypoint for the container to run the binary
-ENTRYPOINT ["/app"]
+WORKDIR /root/
 
+COPY --from=builder /app/main .
+
+ENTRYPOINT ["./main"]
